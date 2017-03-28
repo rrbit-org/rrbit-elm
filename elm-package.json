@@ -1,7 +1,7 @@
 {
     "version": "0.0.1",
     "summary": "Elm's port of the rbbit vector implementation",
-    "repository": "http://github.com/rrbit-org/rrbit-elm.git",
+    "repository": "https://github.com/rrbit-org/rrbit-elm.git",
     "license": "MIT",
     "source-directories": [
         "src"

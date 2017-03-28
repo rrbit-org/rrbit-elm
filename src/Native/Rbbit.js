@@ -50,6 +50,8 @@ var _rbbit_org$rbbit_elm$Native_Rbbit$Native_Rbbit = function(lib) {
     return {
         initialize: F2(initialize),
         append: F2(lib.append),
+        appendAll: F2(lib.appendAll),
+        update: F3(lib.update),
         foldl: F3(foldl),
         foldr: F3(foldr),
         nth: F3(nth),
