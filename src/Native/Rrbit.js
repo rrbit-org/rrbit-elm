@@ -27,6 +27,8 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 		return this.step.bind(this);
 	};
 	var Cassowry = {
+		A2: A2,
+		A3: A3,
 		OCCULANCE_ENABLE: true,
 		Vector: Vector,
 		CancelToken: CancelToken,
@@ -365,7 +367,7 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 					return d1;
 			}
 		},
-		reverseTreeReduce: function reverseTreeReduce(fn, seed, tree, depth, start, i) {
+		reverseTreeFold: function reverseTreeReduce(fn, seed, tree, depth, start, i) {
 			var d0, d1, d2, d3, d4, d5, j;
 			i--;
 			switch (depth) {
@@ -411,7 +413,7 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 							d1End: while (true) {
 								var d0stop = (i >>> 5 << 5) - 1;
 								while (i !== d0stop) {
-									seed = fn(seed, d0[i & 31], i);
+									seed = this.A2(fn, d0[i & 31], seed, i);
 									if (i == start) break d5End;
 									i--;
 								}
@@ -890,7 +892,7 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 		reduce: function reduce(fn, seed, list) {
 			return this.cancelableReduce(fn, seed, list);
 		},
-		reduceRight: function reduceRight(fn, seed, list) {
+		foldr: function foldr(fn, seed, list) {
 			var pre = list.pre,
 				len = list.length - (pre && pre.length || 0),
 				treeLen = len >>> 5 << 5,
@@ -899,17 +901,17 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 				var tail = list.aft;
 				var i = tail.length;
 				while (i--) {
-					seed = fn(seed, tail[i]);
+					seed = this.A2(fn, tail[i], seed);
 				}
 			}
 			if (treeLen) {
-				seed = this.reverseTreeReduce(fn, seed, list.root, this.depthFromLength(treeLen), 0, treeLen);
+				seed = this.reverseTreeFold(fn, seed, list.root, this.depthFromLength(treeLen), 0, treeLen);
 			}
 			if (pre) {
 				var head = this.llToArray(pre);
 				var i = head.length;
 				while (i--) {
-					seed = fn(seed, head[i]);
+					seed = this.A2(fn, tail[i], seed);
 				}
 			}
 			return seed;
@@ -917,6 +919,38 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 		Finder: Finder,
 		find: function find(predicate, list) {
 			return this.cancelableReduce(new this.Finder(predicate).toReducer(), null, list);
+		},
+		indexOf: function indexOf(value, vec) {
+			return this.find(value, vec).index
+		},
+		includes: function includes(value, vec) {
+			return this.find(value, vec).index !== -1
+		},
+		every: function every(predicate, vec) {
+			return this.find(function(value) {
+					return !predicate(value)
+				}, vec).index == -1;
+		},
+		some: function some(predicate, vec) {
+			return this.find(predicate, vec).index !== -1;
+		},
+		of: function of(value) {
+			return this.appendǃ(value, this.empty());
+		},
+		removeAt: function removeAt(i, vec) {
+			return this.appendAll(this.take(i, vec), this.drop(i + 1, vec));
+		},
+
+		remove: function remove(value, vec) {
+			var i = this.find(function(val) {
+				return val === value
+			}, vec).index;
+			return i === -1 ? vec : this.removeAt(i, vec);
+
+		},
+
+		insertAt: function insertAt(i, value, vec) {
+			return this.appendAll(this.append(value, this.take(i, vec)), this.drop(i, vec));
 		}
 	};
 
@@ -931,8 +965,16 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 		, appendAll = Cassowry.appendAll.bind(Cassowry)
 		, empty = Cassowry.empty.bind(Cassowry)
 		, reduce = Cassowry.reduce.bind(Cassowry)
-		, reduceRight = Cassowry.reduceRight.bind(Cassowry)
+		, foldr = Cassowry.foldr.bind(Cassowry)
 		, find = Cassowry.find.bind(Cassowry)
+		, indexOf = Cassowry.indexOf.bind(Cassowry)
+		, includes = Cassowry.includes.bind(Cassowry)
+		, every = Cassowry.every.bind(Cassowry)
+		, some = Cassowry.some.bind(Cassowry)
+		, of = Cassowry.of.bind(Cassowry)
+		, remove = Cassowry.remove.bind(Cassowry)
+		, removeAt = Cassowry.removeAt.bind(Cassowry)
+		, insertAt = Cassowry.insertAt.bind(Cassowry)
 
 
 	function _toReducer() {
@@ -1044,55 +1086,11 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 		return vec;
 	}
 
-	function indexOf(value, vec) {
-		return find(value, vec).index
-	}
-
-	function includes(value, vec) {
-		return find(value, vec).index !== -1
-	}
 
 	function foldl(fn, acc, vec) {
 		return reduce(function(sum, value) {
 			return A2(fn, value, sum);
 		}, acc, vec);
-	}
-
-	function foldr(fn, acc, vec) {
-		return reduceRight(function(sum, value) {
-			return A2(fn, value, sum);
-		}, acc, vec);
-	}
-
-	function of(value) {
-		var vec = empty(value);
-		return appendǃ(value, vec);
-	}
-
-	function every(predicate, vec) {
-		return find(function(value) {
-				return !predicate(value)
-			}, vec).index == -1;
-	}
-
-	function some(predicate, vec) {
-		return find(predicate, vec).index !== -1;
-	}
-
-	function removeAt(i, vec) {
-		return appendAll(take(i, vec), drop(i + 1, vec));
-	}
-
-	function remove(value, vec) {
-		var i = find(function(val) {
-			return val === value
-		}, vec).index;
-		return i === -1 ? vec : removeAt(i, vec);
-
-	}
-
-	function insertAt(i, value, vec) {
-		return appendAll(append(value, take(i, vec)), drop(i, vec));
 	}
 
 	function range(start, end) {
