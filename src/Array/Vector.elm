@@ -58,6 +58,28 @@ initialize : Int -> (Int -> itemType) -> Vector itemType
 initialize size fn =
     Native.Rrbit.initialize size fn
 
+range : Int -> Int -> Vector itemType
+range from to =
+    Native.Rrbit.range from to
+
+times : Int -> (Int -> itemType) -> Vector itemType
+times = initialize
+
+repeat : Int -> itemType -> Vector itemType
+repeat end item =
+    times end (\_ -> item)
+
+timesHelp : (Int -> itemType) -> Int -> Int -> Vector itemType -> Vector itemType
+timesHelp fn i end list =
+    if i >= end then
+        list
+    else
+        let
+            value = fn i
+            list_ = append value list
+        in
+            timesHelp fn (i + 1) end list_
+
 --fromListHelp value vec
 
 fromList : List itemType -> Vector itemType
@@ -69,20 +91,20 @@ toList vec =
     foldr (::) [] vec
 
 foldl : (a -> b -> b) -> b -> Vector a -> b
-foldl fn rrb = 
-    Native.Rrbit.foldl fn rrb
+foldl fn seed vec =
+    Native.Rrbit.foldl fn seed vec
 
 foldr : (a -> b -> b) -> b -> Vector a -> b
-foldr fn rrb = 
-    Native.Rrbit.foldr fn rrb
+foldr fn seed vec =
+    Native.Rrbit.foldr fn seed vec
 
 map : (a -> b) -> Vector a -> Vector b
-map fn rrb =
-    Native.Rrbit.map fn rrb
+map fn vec =
+    Native.Rrbit.map fn vec
 
 filter : (a -> Bool) -> Vector a -> Vector a
-filter fn rrb =
-    Native.Vector.filter fn rrb
+filter fn vec =
+    Native.Vector.filter fn vec
 
 nth : Int -> Vector itemType -> Maybe itemType
 nth i vec =
@@ -131,29 +153,6 @@ push = append
 appendAll : Vector itemType -> Vector itemType -> Vector itemType
 appendAll left right =
     Native.Rrbit.appendAll left right
-
-range : Int -> Int -> Vector itemType
-range from to =
-    Native.Rrbit.range from to
-
-times : Int -> (Int -> itemType) -> Vector itemType
-times end populate =
-    timesHelp populate 0 end empty
-
-repeat : Int -> itemType -> Vector itemType
-repeat end item =
-    timesHelp (\_ -> item) 0 end empty
-
-timesHelp : (Int -> itemType) -> Int -> Int -> Vector itemType -> Vector itemType
-timesHelp fn i end list =
-    if i >= end then
-        list
-    else
-        let
-            value = fn i
-            list_ = append value list
-        in
-            timesHelp fn (i + 1) end list_
 
 
 all : (itemType -> Bool) -> Vector itemType -> Bool

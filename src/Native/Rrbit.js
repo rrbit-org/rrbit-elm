@@ -14,13 +14,15 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 		this.index = index;
 	}
 
+	CancelToken.prototype.isCancelToken = true
+
 	function Finder(predicate) {
 		this.predicate = predicate;
 	}
 
 	Finder.prototype.Found = CancelToken;
 	Finder.prototype.NotFound = new CancelToken(null, -1);
-	Finder.prototype.step = function(_, value, index) {
+	Finder.prototype.step = function(value, _, index) {
 		return this.predicate(value) ? new this.Found(value, index) : this.NotFound;
 	};
 	Finder.prototype.toReducer = function() {
@@ -29,11 +31,26 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 	var Cassowry = {
 		A2: A2,
 		A3: A3,
+		A2f: function(fn, a, b) {
+			return fn.func(a, b)
+		},
+		A2e: function(fn, a, b) {
+			return fn(a)(b)
+		},
+		getA2(fn) {
+			return fn.arity == 2 ? this.A2f : this.A2e
+		},
+		MY3: function(fn, a, b, c) {
+			return fn(a, b, c);
+		},
+		MY3R: function(fn, a, b, c) {
+			return fn(b, a, c)
+		},
 		OCCULANCE_ENABLE: true,
 		Vector: Vector,
 		CancelToken: CancelToken,
 		isCancelled: function isCancelled(value) {
-			return value instanceof this.CancelToken;
+			return value && value.isCancelToken;
 		},
 		done: function done(value, index, depth) {
 			return new this.CancelToken(value, index, depth);
@@ -368,7 +385,7 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 			}
 		},
 		reverseTreeFold: function reverseTreeReduce(fn, seed, tree, depth, start, i) {
-			var d0, d1, d2, d3, d4, d5, j;
+			var d0, d1, d2, d3, d4, d5, j, _A2 = this.getA2(fn);
 			i--;
 			switch (depth) {
 				case 5:
@@ -413,7 +430,7 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 							d1End: while (true) {
 								var d0stop = (i >>> 5 << 5) - 1;
 								while (i !== d0stop) {
-									seed = this.A2(fn, d0[i & 31], seed, i);
+									seed = _A2(fn, d0[i & 31], seed, i);
 									if (i == start) break d5End;
 									i--;
 								}
@@ -444,7 +461,7 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 			}
 			return seed;
 		},
-		cancelableTreeReduce: function cancelableTreeReduce(fn, seed, tree, depth, i, end) {
+		treeFold: function cancelableTreeReduce(fn, seed, tree, depth, i, end, ap, offset) {
 			var d0, d1, d2, d3, d4, d5, j;
 			switch (depth) {
 				case 5:
@@ -486,10 +503,7 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 								var end0 = i + 32;
 								while (i < end0) {
 									if (i == end) break d5End;
-									seed = fn(seed, d0[i & 31], i);
-									if (this.isCancelled(seed)) {
-										break d5End;
-									}
+									seed = ap(fn, d0[i & 31], seed, i + offset);
 									i++;
 								}
 								if (!(j = i >>> 5 & 31)) {
@@ -526,26 +540,6 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 				d2 = d3[i >>> 15 & 31];
 				d1 = d2[i >>> 10 & 31];
 				d0 = d1[i >>> 5 & 31];
-			}
-			return seed;
-		},
-		cancelableReduce: function cancelableReduce(fn, seed, list) {
-			var pre = list.pre,
-				len = list.length - (pre && pre.length || 0),
-				treeLen = len >>> 5 << 5,
-				tailLen = len & 31;
-			while (pre && !this.isCancelled(seed)) {
-				seed = fn(seed, pre.data);
-				pre = pre.link;
-			}
-			if (treeLen && !this.isCancelled(seed)) {
-				seed = this.cancelableTreeReduce(fn, seed, list.root, this.depthFromLength(treeLen), 0, treeLen);
-			}
-			if (tailLen && !this.isCancelled(seed)) {
-				var tail = list.aft;
-				for (var i = 0; tailLen > i && !this.isCancelled(seed); i++) {
-					seed = fn(seed, tail[i]);
-				}
 			}
 			return seed;
 		},
@@ -890,18 +884,45 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 			return this.squash(vec);
 		},
 		reduce: function reduce(fn, seed, list) {
-			return this.cancelableReduce(fn, seed, list);
+			var ap = fn.length == 3 ? this.MY3R : this.getA2(fn)
+			return this.cancelableReduce(fn, seed, list, ap);
+		},
+		foldl: function foldl(fn, seed, list) {
+			var pre = list.pre,
+				preLen = pre && pre.length || 0,
+				len = list.length - (pre && pre.length || 0),
+				treeLen = len >>> 5 << 5,
+				tailLen = len & 31,
+				ap = fn.length == 3 ? this.MY3 : this.getA2(fn);
+
+			var p_i = 0
+			while (pre) {
+				seed = ap(fn, pre.data, seed, p_i++);
+				pre = pre.link;
+			}
+			if (treeLen) {
+				seed = this.treeFold(fn, seed, list.root, this.depthFromLength(treeLen), 0, treeLen, ap, preLen);
+			}
+			if (tailLen) {
+				var tail = list.aft;
+				for (var i = 0; tailLen > i; i++) {
+					seed = ap(fn, tail[i], seed, preLen + treeLen + i);
+				}
+			}
+			return seed;
 		},
 		foldr: function foldr(fn, seed, list) {
 			var pre = list.pre,
 				len = list.length - (pre && pre.length || 0),
 				treeLen = len >>> 5 << 5,
-				tailLen = len & 31;
+				tailLen = len & 31,
+				_A2 = this.getA2(fn);
+
 			if (tailLen) {
 				var tail = list.aft;
 				var i = tail.length;
 				while (i--) {
-					seed = this.A2(fn, tail[i], seed);
+					seed = _A2(fn, tail[i], seed);
 				}
 			}
 			if (treeLen) {
@@ -911,14 +932,14 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 				var head = this.llToArray(pre);
 				var i = head.length;
 				while (i--) {
-					seed = this.A2(fn, tail[i], seed);
+					seed = _A2(fn, tail[i], seed);
 				}
 			}
 			return seed;
 		},
 		Finder: Finder,
 		find: function find(predicate, list) {
-			return this.cancelableReduce(new this.Finder(predicate).toReducer(), null, list);
+			return this.cancelableReduce(new this.Finder(predicate).toReducer(), null, list, this.MY3);
 		},
 		indexOf: function indexOf(value, vec) {
 			return this.find(value, vec).index
@@ -936,6 +957,21 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 		},
 		of: function of(value) {
 			return this.appendǃ(value, this.empty());
+		},
+		initialize: function initialize(size, fn) {
+			var i = 0;
+			var vec = this.empty();
+			while (size > i) {
+				vec = this.appendǃ(fn(i++), vec);
+			}
+			return vec;
+		},
+		range: function range(start, end) {
+			var vec = empty();
+			for (; start < end; start++) {
+				vec = this.appendǃ(start, vec)
+			}
+			return vec;
 		},
 		removeAt: function removeAt(i, vec) {
 			return this.appendAll(this.take(i, vec), this.drop(i + 1, vec));
@@ -966,12 +1002,15 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 		, empty = Cassowry.empty.bind(Cassowry)
 		, reduce = Cassowry.reduce.bind(Cassowry)
 		, foldr = Cassowry.foldr.bind(Cassowry)
+		, foldl = Cassowry.foldl.bind(Cassowry)
 		, find = Cassowry.find.bind(Cassowry)
 		, indexOf = Cassowry.indexOf.bind(Cassowry)
 		, includes = Cassowry.includes.bind(Cassowry)
 		, every = Cassowry.every.bind(Cassowry)
 		, some = Cassowry.some.bind(Cassowry)
 		, of = Cassowry.of.bind(Cassowry)
+		, initialize = Cassowry.initialize.bind(Cassowry)
+		, range = Cassowry.range.bind(Cassowry)
 		, remove = Cassowry.remove.bind(Cassowry)
 		, removeAt = Cassowry.removeAt.bind(Cassowry)
 		, insertAt = Cassowry.insertAt.bind(Cassowry)
@@ -1053,7 +1092,7 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 
 	Mapper.prototype.add = appendǃ;
 	Mapper.prototype.toReducer = _toReducer;
-	Mapper.prototype.step = function(list, value) {
+	Mapper.prototype.step = function(list, value, _) {
 		return this.add(this.fn(value), list);
 	};
 
@@ -1068,38 +1107,12 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 
 	Filter.prototype.add = appendǃ;
 	Filter.prototype.toReducer = _toReducer;
-	Filter.prototype.step = function(list, value) {
+	Filter.prototype.step = function(list, value, _) {
 		return this.predicate(value) ? this.add(value, list) : list
 	};
 
 	function filter(fn, vec) {
 		return reduce(new Filter(fn).toReducer(), empty(), vec)
-	}
-
-	function initialize(size, fn) {
-		var i = 0;
-		var vec = empty();
-		var add = appendǃ
-		while (size > i) {
-			add(fn(i++), vec);
-		}
-		return vec;
-	}
-
-
-	function foldl(fn, acc, vec) {
-		return reduce(function(sum, value) {
-			return A2(fn, value, sum);
-		}, acc, vec);
-	}
-
-	function range(start, end) {
-		var vec = empty();
-		var add = appendǃ;
-		for (; start < end; start++) {
-			vec = add(start, vec)
-		}
-		return vec;
 	}
 
 	function sortWith(fn, vec) {
@@ -1143,7 +1156,8 @@ var _rrbit_org$rrbit_elm$Native_Rrbit = function() {
 		'of': of,
 		length: function(vec) {
 			return vec.length;
-		}
+		},
+		fromArray: fromArray
 	}
 }(function() {
 
