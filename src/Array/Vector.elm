@@ -104,7 +104,7 @@ map fn vec =
 
 filter : (a -> Bool) -> Vector a -> Vector a
 filter fn vec =
-    Native.Vector.filter fn vec
+    Native.Rrbit.filter fn vec
 
 nth : Int -> Vector itemType -> Maybe itemType
 nth i vec =
@@ -147,7 +147,6 @@ append t vec =
     Native.Rrbit.append t vec
 
 push : itemType -> Vector itemType -> Vector itemType
-
 push = append
 
 appendAll : Vector itemType -> Vector itemType -> Vector itemType
