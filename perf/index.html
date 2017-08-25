@@ -11496,12 +11496,12 @@ var Cassowry = {
 		var init = this.aInit
 		var rootLen = this.tailOffset(length)
 		var depth = this.depthFromLength(rootLen)
-		vec.root = this.fastInitRecurse(fn, depth, 0, rootLen, init)
+		vec.root = this._fastInitRecurse(fn, depth, 0, rootLen, init)
 		vec.aft = init(fn, rootLen, length)
 		vec.length = length
 		return vec
 	}
-	, fastInitRecurse: function fastInitRecurse(fn, depth, from, to, initBlock) {
+	, _fastInitRecurse: function fastInitRecurse(fn, depth, from, to, initBlock) {
 
 		if (depth === 0) {
 			return initBlock(fn, from, to)
